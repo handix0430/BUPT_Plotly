@@ -3,6 +3,7 @@ import pandas as pd
 #Upload
 import base64 
 import io
+import requests
 
 import plotly.express as px
 from dash import Dash, html, dcc, dash_table, Input, Output, State #dcc动态交互模块
@@ -16,8 +17,17 @@ app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 # Data
 ## Built-In
 df = px.data.iris()
+
+## Local
+#df = pd.read_csv("iris.data.csv")
+
 ## Online
 #url = 'https://www.gairuo.com/file/data/dataset/iris.data'
+#df = pd.read_html(url)
+
+
+# Variable
+
 
 ######################### Figure ###########################
 
@@ -50,7 +60,9 @@ figHeatmap = px.imshow(corr_matrix.values,
                 y=corr_matrix.columns,
                 color_continuous_scale='RdBu',
                 zmin=-1,
-                zmax=1)
+                zmax=1,
+                #text_auto=True
+                )
 
 ####################### Layout #############################
 
@@ -60,28 +72,34 @@ Layout = html.Div(children=[
     html.H1(children='毕设项目: 基于Plotly-Dash的动态数据分析系统'),
     html.H2(children='2019211121 2018210087 黄隽杰'),
 
-    #Body
     html.Br(),
 
-    ##Upload
-        html.H3(children='上传模块',style={'color': 'red'}),
-        dcc.Upload(
-        id='upload',
-        children=html.Div([html.A('点击上传或将文件拖入此区域')]),
-        style={
-            'width': '100%',
-            'height': '60px',
-            'lineHeight': '60px',
-            'borderWidth': '1px',
-            'borderStyle': 'dashed',
-            'borderRadius': '5px',
-            'textAlign': 'center',
-            'margin': '10px'
-               },
-        #multiple=True #多文件上传
+    ## Upload
+    html.H3(children='上传模块',style={'color': 'red'}),
+
+    ### OnlineData
+    dcc.Input(id='input-url', type='text', placeholder='输入数据URL'),
+    html.Button('读取数据', id='submit-url'),
+
+
+    ### LocalCSV
+    dcc.Upload(
+    id='upload',
+    children=html.Div([html.A('点击上传或将文件拖入此区域')]),
+    style={
+        'width': '100%',
+        'height': '60px',
+        'lineHeight': '60px',
+        'borderWidth': '1px',
+        'borderStyle': 'dashed',
+        'borderRadius': '5px',
+        'textAlign': 'center',
+        'margin': '10px'
+            },
+    #multiple=True #多文件上传
     ),
 
-    ##UploadOutput
+    ## UploadOutput
     html.H3(children='上传输出内容',style={'color': 'red'}),
 
     html.Div([
@@ -91,6 +109,8 @@ Layout = html.Div(children=[
 
 
 
+    #Body
+    html.Br(),
     ##Scatter
     html.H3(children='散列图模块',style={'color': 'red'}),
 
@@ -109,6 +129,7 @@ Layout = html.Div(children=[
 
     ##Bar
     html.H3(children='柱状图模块',style={'color': 'red'}),
+
     ##BarDropdown
     html.P(style={'margin-top':'40px','margin-bottom':'40px'}),
 
@@ -136,6 +157,24 @@ Layout = html.Div(children=[
 app.layout = Layout
 
 ################## Callback ##################################
+##OnlineData
+# @app.callback(
+#     [Output('Scatter', 'figure'), 
+#     Output('Bar', 'figure'),
+#     Output('Heatmap', 'figure')],
+#     [Input('submit-url', 'n_clicks')],
+#     [State('input-url', 'value')]
+#     )
+# def update_figure(n_clicks, url):
+#     if not url:
+#         return {}
+
+#     # 从URL读取数据
+#     try:
+#         response = requests.get(url)
+#         df = pd.read_csv(io.StringIO(response.text))
+#     except:
+#         return {}
 
 ##table
 @app.callback(
@@ -157,6 +196,8 @@ def update_datatable(contents, filename):
         df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
     elif 'xls' in filename:
         df = pd.read_excel(io.BytesIO(decoded))
+    elif 'txt' in filename:
+        df = pd.read_csv(io.StringIO(decoded.decode('utf-8')), sep='\t')
 
     if df is None:
         return [{}],[]
@@ -174,7 +215,7 @@ def update_datatable(contents, filename):
         lower_bound = q1 - 1.5 * iqr
         upper_bound = q3 + 1.5 * iqr
         outliers = df[(df[col] < lower_bound) | (df[col] > upper_bound)]
-        print(f"{col}: {len(outliers)} outliers")
+        #print(f"{col}: {len(outliers)} outliers")
 
     ##替换异常值为中位数
     for col in df.columns[:-1]:
@@ -195,6 +236,8 @@ def update_datatable(contents, filename):
 
     return df.to_dict('records'), [{'name': i, 'id': i} for i in df.columns]
 
+
+
 ##ScatterSlider
 @app.callback(
     Output("Scatter", "figure"), 
@@ -212,6 +255,8 @@ def update_Scatter_fig(slider_range):
         hover_data=['petal_width']
         )
     return figScatter
+
+
 
 ##BarDropdown
 @app.callback(
@@ -233,6 +278,8 @@ def update_species_bar(species):
         barmode="group"
     )
     return figBar
+
+
 
 ## Heatmap
 
