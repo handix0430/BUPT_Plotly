@@ -4,8 +4,10 @@ import pandas as pd
 import plotly.express as px
 from dash import Dash, html, dcc, dash_table, Input, Output, State #dcc动态交互模块
 
-import datetime
 import re
+import base64
+import io
+import json
 #### Create app ####
 
 app = Dash(__name__)
@@ -23,26 +25,31 @@ df = pd.read_excel("CUP_SNAP_HISTORYRECORD.xlsx")
 ##################### Cleanse #####################
 #region Cleanse
 #df = df.drop_duplicates()
-df = df.loc[:, ["sex","age","snap_cam_name","snap_id","snap_time"]]#提取特定几列
-df = df.fillna(0) #缺失值填0
+def Cleanse_df(df):
+    df = df.loc[:, ["sex","age","snap_cam_name","snap_id","snap_time"]]#提取特定几列
+    df = df.fillna(0) #缺失值填0
 
-# 门禁摄像头名称改名,只保留位置和进出
-pattern = re.compile(r'人脸-?\d+|-?\d+')
-df["snap_cam_name"] = df["snap_cam_name"].apply(lambda x: re.sub(pattern, '', x))
+    # 门禁摄像头名称改名,只保留位置和进出
+    pattern = re.compile(r'人脸-?\d+|-?\d+')
+    df["snap_cam_name"] = df["snap_cam_name"].apply(lambda x: re.sub(pattern, '', x))
 
-# df["snap_cam_name"] = df["snap_cam_name"].replace({}) # 替换值
-# df["lane_code"] = pd.to_numeric(df["lane_code"], errors="coerce") # 将ID列转换为数值类型，如果遇到无法转换的值，设为NULL
-# df["lane_code"] = df["lane_code"].fillna(0) # 将NULL值填充为0
-#df["snap_time"] = df["snap_time"].astype('category')
-df["sex"] = df["sex"].astype('category')
+    # df["snap_cam_name"] = df["snap_cam_name"].replace({}) # 替换值
+    # df["lane_code"] = pd.to_numeric(df["lane_code"], errors="coerce") # 将ID列转换为数值类型，如果遇到无法转换的值，设为NULL
+    # df["lane_code"] = df["lane_code"].fillna(0) # 将NULL值填充为0
+    #df["snap_time"] = df["snap_time"].astype('category')
+    df["sex"] = df["sex"].astype('category')
 
-df["snap_time"] = pd.to_datetime(df["snap_time"]) # 转换时间
-df["date"] = df["snap_time"].dt.date # 提取日期
-df["time"] = df["snap_time"].dt.time # 提取时间
-#df.sort_values(by=['Date', 'Time'], inplace=True) # 按日期时间排序
-df["hour"] = df["snap_time"].dt.hour # 提取小时
-#df["time"] = pd.to_datetime(df["time"], format='%H:%M:%S').dt.strftime('%H:%M')
-df["time"] = pd.to_datetime(df["time"], format='%H:%M:%S')
+    df["snap_time"] = pd.to_datetime(df["snap_time"]) # 转换时间
+    df["date"] = df["snap_time"].dt.date # 提取日期
+    df["time"] = df["snap_time"].dt.time # 提取时间
+    #df.sort_values(by=['Date', 'Time'], inplace=True) # 按日期时间排序
+    df["hour"] = df["snap_time"].dt.hour # 提取小时
+    #df["time"] = pd.to_datetime(df["time"], format='%H:%M:%S').dt.strftime('%H:%M')
+    df["time"] = pd.to_datetime(df["time"], format='%H:%M:%S')
+    return df
+
+df=Cleanse_df(df)
+#print(df)
 #endregion
 
 
@@ -59,7 +66,32 @@ Layout = html.Div(children=[
 
     #Body
 
-    ##Selector    
+    ##Selector
+    ##Upload
+
+    dcc.Upload(
+        id='upload-data',
+        children=html.Div([
+            '拖拽或',
+            html.A('选择档案'),
+            '以更新数据'
+        ]),
+        style={
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px'
+        },
+        accept='.csv,.xls,.xlsx,.txt',
+        multiple=False
+    ),
+    html.Div(id='output-data-upload'),
+
+    
     ###Interval
     # html.Div([
     #     html.Button('▶️', id='play-button', n_clicks=0),
@@ -71,6 +103,8 @@ Layout = html.Div(children=[
     #     )
     # ]),
     
+    html.Br(),
+
     ###place selector
     html.P('请选择欲查询的位置'),
     dcc.Dropdown(
@@ -79,7 +113,7 @@ Layout = html.Div(children=[
         value=list(df["snap_cam_name"].unique()),
         multi=True
     ),
-    
+    html.Br(),
     ###sex selector
     html.P('请选择欲查询的性别'),
     dcc.Checklist(
@@ -121,11 +155,10 @@ Layout = html.Div(children=[
 ########## ScatterCallback ##########
 @app.callback(
     Output('Scatter', 'figure'),
-    [Input('sex_selector', 'value'), Input('place_selector', 'value')]
+    [Input('sex_selector', 'value'), Input('place_selector', 'value')],
 )
-def update_figure_Scatter(selected_sex, selected_place):
+def update_scatter(selected_sex, selected_place):
     filtered_data_scatter = df[(df["sex"].isin(selected_sex)) & (df["snap_cam_name"] .isin(selected_place))]
-    #print(filtered_data_scatter)
     figScatter = px.scatter(
         filtered_data_scatter,
         x="snap_time",
@@ -152,13 +185,13 @@ def update_figure_Scatter(selected_sex, selected_place):
     Output("bar", "figure"),
     [Input('sex_selector', 'value'), Input('place_selector', 'value'),Input('hour_selector', 'value')]
 )
-def update_figure_Bar(selected_sex, selected_place,selected_hour):
+def update_bar(selected_sex, selected_place,selected_hour):
     if selected_hour == 'all':
         filtered_data_bar = df[(df["sex"].isin(selected_sex)) & (df["snap_cam_name"] .isin(selected_place))]  
     else:
         filtered_data_bar = df[(df["sex"].isin(selected_sex)) & (df["snap_cam_name"] .isin(selected_place)) & (df["hour"]==int(selected_hour))]
         #filtered_data_bar = df[(df["hour"]==selected_hour)]
-        print(filtered_data_bar)
+        #print(filtered_data_bar)
     # print(selected_hour)
     # print(df[df["hour"]==int(selected_hour)])
     #filtered_data_bar = df[(df["sex"].isin(selected_sex)) & (df["snap_cam_name"] .isin(selected_place)) & (df["hour"] == selected_hour)]  
@@ -169,7 +202,7 @@ def update_figure_Bar(selected_sex, selected_place,selected_hour):
         labels=['<18', '18-28', '>28'],
         right=False
         )
-    print(filtered_data_bar['age_group'].value_counts())
+    #print(filtered_data_bar['age_group'].value_counts())
     #filtered_data_bar = filtered_data_bar.dropna(subset=['age_group'])
     figBar = px.histogram(
         filtered_data_bar, 
@@ -229,6 +262,42 @@ def update_heatmap(selected_sex,selected_place):
     figHeatmap.update_yaxes(title="过道编号",type="category")
     return figHeatmap
 
+
+
+@app.callback(Output('output-data-upload', 'children'),
+              [Input('upload-data', 'contents'),Input('sex_selector', 'value'), Input('place_selector', 'value'),Input('hour_selector', 'value')],
+              State('upload-data', 'filename'))
+
+def update_dataframe(contents, filename,selected_sex,selected_place,selected_hour):
+    global df
+    if contents is not None:
+        # 解析上传的CSV文件，存储到DataFrame中
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+        try:
+            if 'csv' in filename:
+                df_upload = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            elif 'xls' or 'xlsx' in filename:
+                df_upload = pd.read_excel(io.BytesIO(decoded))
+            else:
+                return html.Div([
+                    '不支持该档案。目前支持xls、xlsx、csv'
+                ])
+        except Exception as e:
+            print(e)
+            return html.Div([
+                'Error.'
+            ])
+        df=Cleanse_df(df_upload)
+        #print(df)
+        return html.Div([
+            '上传成功！',
+        ])
+    else:
+        return html.Div([
+            '请上传档案以更新'
+        ])
+# print(df)
 ##################### MAIN #####################
 if __name__ == "__main__":
    app.layout = Layout

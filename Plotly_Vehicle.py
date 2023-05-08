@@ -5,6 +5,8 @@ import plotly.express as px
 from dash import Dash, html, dcc, dash_table, Input, Output, State #dcc动态交互模块
 
 import datetime
+import base64
+import io
 #### Create app ####
 
 app = Dash(__name__)
@@ -62,6 +64,28 @@ Layout = html.Div(children=[
     html.Br(),
 
     #Body
+    ##Upload
+    dcc.Upload(
+        id='upload-data',
+        children=html.Div([
+            '将文件拖拽至此或',
+            html.A('点击选择文件')
+        ]),
+        style={
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px'
+        },
+        # 允许上传的文件类型
+        multiple=False,  # 是否允许上传多个文件
+        accept='.csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel'  # 允许上传的文件格式
+    ),
+    html.Div(id='output-data-upload'),
 
     ##Selector
     ###Date Picker
