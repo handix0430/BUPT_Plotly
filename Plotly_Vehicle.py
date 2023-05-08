@@ -22,25 +22,27 @@ df = pd.read_excel("CUC_Serv_Vehicle_Record.xlsx",nrows=100000)
 
 ##################### Cleanse #####################
 #region Cleanse
-#df = df.drop_duplicates()
-df = df.loc[:, ["vehicle_plate","plate_color","lane_code","cross_time"]]#提取特定几列
-df = df.fillna(0) #缺失值填0
-df["plate_color"] = df["plate_color"].replace({"black":"黑","blue":"蓝","green":"绿","white":"白","yellow":"黄"}) # 替换不一致的值
-df["lane_code"] = pd.to_numeric(df["lane_code"], errors="coerce") # 将ID列转换为数值类型，如果遇到无法转换的值，设为NULL
-df["lane_code"] = df["lane_code"].fillna(0) # 将NULL值填充为0
-df["lane_code"] = df["lane_code"].astype('category')
+def Cleanse_df(df):
+    #df = df.drop_duplicates()
+    df = df.loc[:, ["vehicle_plate","plate_color","lane_code","cross_time"]]#提取特定几列
+    df = df.fillna(0) #缺失值填0
+    df["plate_color"] = df["plate_color"].replace({"black":"黑","blue":"蓝","green":"绿","white":"白","yellow":"黄"}) # 替换不一致的值
+    df["lane_code"] = pd.to_numeric(df["lane_code"], errors="coerce") # 将ID列转换为数值类型，如果遇到无法转换的值，设为NULL
+    df["lane_code"] = df["lane_code"].fillna(0) # 将NULL值填充为0
+    df["lane_code"] = df["lane_code"].astype('category')
 
-df["cross_time"] = pd.to_datetime(df["cross_time"]) # 转换时间
-df["Date"] = df["cross_time"].dt.date # 提取日期
-df["Time"] = df["cross_time"].dt.time # 提取时间
-df.sort_values(by=['Date', 'Time'], inplace=True) # 按日期时间排序
-df["Hour"] = df["cross_time"].dt.hour # 提取小时
-df["HourMinute"] = pd.to_datetime(df["Time"], format='%H:%M:%S').dt.strftime('%H:%M')
+    df["cross_time"] = pd.to_datetime(df["cross_time"]) # 转换时间
+    df["Date"] = df["cross_time"].dt.date # 提取日期
+    df["Time"] = df["cross_time"].dt.time # 提取时间
+    df.sort_values(by=['Date', 'Time'], inplace=True) # 按日期时间排序
+    df["Hour"] = df["cross_time"].dt.hour # 提取小时
+    df["HourMinute"] = pd.to_datetime(df["Time"], format='%H:%M:%S').dt.strftime('%H:%M')
 
-# 按小时计算经过车辆总数
-# hourly_count = df.groupby(df['cross_time'].dt.hour)['vehicle_plate'].count().reset_index(name="count")
-# print(hourly_count.T)
-
+    # 按小时计算经过车辆总数
+    # hourly_count = df.groupby(df['cross_time'].dt.hour)['vehicle_plate'].count().reset_index(name="count")
+    # print(hourly_count.T)
+    return df
+df=Cleanse_df(df)
 #df.to_excel("CUC_Serv_Vehicle_Record_CLEANSE.xlsx")
 #print(df)
 
@@ -68,8 +70,9 @@ Layout = html.Div(children=[
     dcc.Upload(
         id='upload-data',
         children=html.Div([
-            '将文件拖拽至此或',
-            html.A('点击选择文件')
+            '拖拽文件至此或',
+            html.A('点击选择文件'),
+            '以更新数据'
         ]),
         style={
             'width': '100%',
@@ -86,7 +89,7 @@ Layout = html.Div(children=[
         accept='.csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel'  # 允许上传的文件格式
     ),
     html.Div(id='output-data-upload'),
-
+    html.Br(),
     ##Selector
     ###Date Picker
     html.P('请选择日期'),
@@ -98,7 +101,7 @@ Layout = html.Div(children=[
         date=df["Date"].min(),
         display_format='YYYY-MM-DD',
     ),
-    
+    html.Br(),   
     ###Interval
     html.Div([
         html.Button('▶️', id='play-button', n_clicks=0),
@@ -109,7 +112,7 @@ Layout = html.Div(children=[
             n_intervals=0
         )
     ]),
-    
+    html.Br(),
     ###lane_code selector
     html.P('请选择欲查询的过道编号'),
     dcc.Checklist(
@@ -117,7 +120,7 @@ Layout = html.Div(children=[
         options=[{'label': code, 'value': code} for code in sorted(df["lane_code"].unique())],
         value=list(df["lane_code"].unique())
     ),
-    
+    html.Br(),
     ###plate_color selector
     html.P('请选择欲查询的车牌颜色'),
     dcc.Checklist(
@@ -324,6 +327,41 @@ def control_animation(play_clicks, pause_clicks, interval_disabled):
     else:
         return True
 
+
+########## UploadCallback ##########
+@app.callback(Output('output-data-upload', 'children'),
+              [Input('upload-data', 'contents'),Input('date-picker', 'date'), Input('color-selector', 'value'), Input('lane-code-selector', 'value')],
+              State('upload-data', 'filename'))
+
+def update_dataframe(contents, filename,selected_date, selected_color, selected_lanes):
+    global df
+    if contents is not None:
+        # 解析上传的CSV文件，存储到DataFrame中
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+        try:
+            if 'csv' in filename:
+                df_upload = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            elif 'xls' or 'xlsx' in filename:
+                df_upload = pd.read_excel(io.BytesIO(decoded))
+            else:
+                return html.Div([
+                    '不支持该档案。目前支持xls、xlsx、csv'
+                ])
+        except Exception as e:
+            print(e)
+            return html.Div([
+                'Error.'
+            ])
+        df=Cleanse_df(df_upload)
+        #print(df)
+        return html.Div([
+            '上传成功！',
+        ])
+    else:
+        return html.Div([
+            '请上传档案以更新'
+        ])
 ##################### MAIN #####################
 if __name__ == "__main__":
    app.layout = Layout

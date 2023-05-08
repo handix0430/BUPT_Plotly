@@ -7,7 +7,6 @@ from dash import Dash, html, dcc, dash_table, Input, Output, State #dcc动态交
 import re
 import base64
 import io
-import json
 #### Create app ####
 
 app = Dash(__name__)
@@ -72,8 +71,8 @@ Layout = html.Div(children=[
     dcc.Upload(
         id='upload-data',
         children=html.Div([
-            '拖拽或',
-            html.A('选择档案'),
+            '拖拽文件至此或',
+            html.A('点击选择文件'),
             '以更新数据'
         ]),
         style={
@@ -263,7 +262,7 @@ def update_heatmap(selected_sex,selected_place):
     return figHeatmap
 
 
-
+########## UploadCallback ##########
 @app.callback(Output('output-data-upload', 'children'),
               [Input('upload-data', 'contents'),Input('sex_selector', 'value'), Input('place_selector', 'value'),Input('hour_selector', 'value')],
               State('upload-data', 'filename'))
