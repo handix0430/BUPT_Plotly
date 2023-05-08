@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.express as px
 from dash import Dash, html, dcc, dash_table, Input, Output, State #dcc动态交互模块
 
-import time
 import datetime
 #### Create app ####
 
@@ -82,7 +81,7 @@ Layout = html.Div(children=[
         html.Button('⏸', id='pause-button', n_clicks=0),
         dcc.Interval(
             id='interval-component',
-            interval=3000, #设置时间
+            interval=5000, #设置时间
             n_intervals=0
         )
     ]),
