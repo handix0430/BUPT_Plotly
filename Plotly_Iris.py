@@ -55,14 +55,22 @@ figBar = px.bar(
 
 ##figHeatmap
 corr_matrix=df.corr(numeric_only=True)
-figHeatmap = px.imshow(corr_matrix.values,
-                x=corr_matrix.index,
-                y=corr_matrix.columns,
-                color_continuous_scale='RdBu',
-                zmin=-1,
-                zmax=1,
-                #text_auto=True
-                )
+# figHeatmap = px.imshow(corr_matrix.values,
+#                 x=corr_matrix.index,
+#                 y=corr_matrix.columns,
+#                 color_continuous_scale='RdBu',
+#                 zmin=-1,
+#                 zmax=1,
+#                 text_auto=True
+#                 )
+figHeatmap_sepal= px.density_heatmap(
+    df, x="sepal_width", y="sepal_length", nbinsx=20, nbinsy=20,
+    labels={'sepal_width': '花萼宽度', 'sepal_length': '花萼长度', 'species': '花种类别'}
+)
+figHeatmap_petal= px.density_heatmap(
+    df, x="petal_width", y="petal_length", nbinsx=20, nbinsy=20,
+    labels={'petal_width': '花瓣宽度', 'petal_length': '花瓣长度', 'species': '花种类别'}
+)
 
 ####################### Layout #############################
 
@@ -116,7 +124,7 @@ Layout = html.Div(children=[
 
     dcc.Graph(id='Scatter', figure=figScatter),
 
-    html.P("Filter by petal width:"),
+    html.P("按花瓣宽度筛选:"),
 
     dcc.RangeSlider(
         id='RangeSliderScatter',
@@ -133,7 +141,7 @@ Layout = html.Div(children=[
     ##BarDropdown
     html.P(style={'margin-top':'40px','margin-bottom':'40px'}),
 
-    html.P("Filter by species:"),
+    html.P("按花种筛选:"),
 
     dcc.Dropdown(
         id='species-dropdown',
@@ -148,7 +156,8 @@ Layout = html.Div(children=[
     ##Heatmap
     html.H3(children='关系热图模块',style={'color': 'red'}),
 
-    dcc.Graph(id='Heatmap',figure=figHeatmap)
+    dcc.Graph(id='Heatmap',figure=figHeatmap_sepal),
+    dcc.Graph(id='Heatmap',figure=figHeatmap_petal)
     
     ],
     #GlobalCSS
@@ -243,16 +252,17 @@ def update_datatable(contents, filename):
     Output("Scatter", "figure"), 
     Input("RangeSliderScatter", "value")
     )
-def update_Scatter_fig(slider_range):
+def update_Scatter(slider_range):
     low, high = slider_range
-    mask = (df['petal_width'] > low) & (df['petal_width'] < high)
+    filtered_df = (df['petal_width'] > low) & (df['petal_width'] < high)
     figScatter = px.scatter(
-        df[mask],
+        df[filtered_df],
         x="sepal_width",
         y="sepal_length",
         color="species",
         size='petal_length',
-        hover_data=['petal_width']
+        hover_data=['petal_width'],
+        labels={'petal_width':'花瓣宽度','petal_length': '花瓣长度', 'species': '花种','sepal_length':'花萼长度','sepal_width':'花萼宽度',"setosa": "山鸢尾","versicolor": "变色鸢尾","virginica": "维吉尼亚鸢尾"},
         )
     return figScatter
 
@@ -263,7 +273,7 @@ def update_Scatter_fig(slider_range):
     Output('Bar', 'figure'),
     Input('species-dropdown', 'value')
 )
-def update_bar_fig(species):
+def update_Bar(species):
     if species == 'all':
         filtered_df = df
         title = "鸢尾花数据柱状图"
@@ -275,7 +285,9 @@ def update_bar_fig(species):
         x='species',
         y=["sepal_width", "sepal_length", "petal_width", "petal_length"],
         title=title,
-        barmode="group"
+        barmode="group",
+        labels={'variable':'变量','value': '统计值', 'species': '花种'},
+
     )
     return figBar
 

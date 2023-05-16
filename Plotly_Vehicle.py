@@ -18,7 +18,7 @@ interval-component 下一行的interval可以设置动画间隔秒数
 '''
 
 ##################### Data #####################
-df = pd.read_excel("CUC_Serv_Vehicle_Record.xlsx",nrows=100000)
+df = pd.read_excel("CMU_Serv_Vehicle_Record.xlsx",nrows=300000)
 
 ##################### Cleanse #####################
 #region Cleanse
@@ -154,7 +154,7 @@ Layout = html.Div(children=[
     Output('Scatter', 'figure'),
     [Input('date-picker', 'date'), Input('color-selector', 'value'), Input('lane-code-selector', 'value')]
 )
-def update_figure_Scatter(selected_date, selected_color, selected_lanes):
+def update_Scatter(selected_date, selected_color, selected_lanes):
     selected_date = pd.to_datetime(selected_date, format='%Y-%m-%d')
     filtered_data_scatter = df[(df['Date'] == selected_date) & (df['plate_color'].isin(selected_color)) & (df["lane_code"] .isin(selected_lanes))]
     #print(df["HourMinute"])
@@ -196,7 +196,7 @@ def update_figure_Scatter(selected_date, selected_color, selected_lanes):
     Output('LineTime', 'figure'),
     [Input('date-picker', 'date'), Input('color-selector', 'value'), Input('lane-code-selector', 'value')]
 )
-def update_figure_LineTime(selected_date, selected_color, selected_lanes):
+def update_Line(selected_date, selected_color, selected_lanes):
     selected_date = pd.to_datetime(selected_date, format="%Y-%m-%d")
     filtered_data_time = df[(df["Date"] == selected_date) & (df['plate_color'].isin(selected_color)) & (df["lane_code"] .isin(selected_lanes))]
     #filtered_data_time = df
@@ -273,7 +273,7 @@ def update_figure_LineTime(selected_date, selected_color, selected_lanes):
     Output("heatmap", "figure"),
     [Input('date-picker', 'date'), Input('color-selector', 'value')]
 )
-def update_heatmap(selected_date, selected_color):
+def update_Heatmap(selected_date, selected_color):
     selected_date = pd.to_datetime(selected_date, format='%Y-%m-%d')
     filtered_data_heatmap = df[(df['cross_time'].dt.date == selected_date.date()) & (df["plate_color"].isin(selected_color))]
     #hourly_count = filtered_data_heatmap.groupby(filtered_data_heatmap['cross_time'].dt.hour)['vehicle_plate'].count().reset_index(name="count")
@@ -332,7 +332,6 @@ def control_animation(play_clicks, pause_clicks, interval_disabled):
 @app.callback(Output('output-data-upload', 'children'),
               [Input('upload-data', 'contents'),Input('date-picker', 'date'), Input('color-selector', 'value'), Input('lane-code-selector', 'value')],
               State('upload-data', 'filename'))
-
 def update_dataframe(contents, filename,selected_date, selected_color, selected_lanes):
     global df
     if contents is not None:

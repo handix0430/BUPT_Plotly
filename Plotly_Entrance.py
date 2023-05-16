@@ -14,7 +14,7 @@ app = Dash(__name__)
 
 '''
 配合Ctrl-F使用
-interval-component 下一行的interval可以设置动画间隔秒数
+
 '''
 
 ##################### Data #####################
@@ -156,7 +156,7 @@ Layout = html.Div(children=[
     Output('Scatter', 'figure'),
     [Input('sex_selector', 'value'), Input('place_selector', 'value')],
 )
-def update_scatter(selected_sex, selected_place):
+def update_Scatter(selected_sex, selected_place):
     filtered_data_scatter = df[(df["sex"].isin(selected_sex)) & (df["snap_cam_name"] .isin(selected_place))]
     figScatter = px.scatter(
         filtered_data_scatter,
@@ -184,7 +184,7 @@ def update_scatter(selected_sex, selected_place):
     Output("bar", "figure"),
     [Input('sex_selector', 'value'), Input('place_selector', 'value'),Input('hour_selector', 'value')]
 )
-def update_bar(selected_sex, selected_place,selected_hour):
+def update_Bar(selected_sex, selected_place,selected_hour):
     if selected_hour == 'all':
         filtered_data_bar = df[(df["sex"].isin(selected_sex)) & (df["snap_cam_name"] .isin(selected_place))]  
     else:
@@ -232,7 +232,7 @@ def update_bar(selected_sex, selected_place,selected_hour):
     Output("heatmap", "figure"),
     [Input('sex_selector', 'value'), Input('place_selector', 'value')]
 )
-def update_heatmap(selected_sex,selected_place):
+def update_Heatmap(selected_sex,selected_place):
     filtered_data_heatmap = df[(df["sex"].isin(selected_sex)) & (df["snap_cam_name"] .isin(selected_place))]
     hour_count = filtered_data_heatmap.groupby(['snap_cam_name','hour']).size().reset_index(name="count")
     heatmap_data = hour_count.pivot(index='snap_cam_name', columns='hour', values='count').fillna(0)
@@ -258,7 +258,7 @@ def update_heatmap(selected_sex,selected_place):
         ticktext=times,
         tickformat='%H:%M', # 添加此参数来设置时间格式
         )
-    figHeatmap.update_yaxes(title="过道编号",type="category")
+    figHeatmap.update_yaxes(title="地点",type="category")
     return figHeatmap
 
 
@@ -267,7 +267,7 @@ def update_heatmap(selected_sex,selected_place):
               [Input('upload-data', 'contents'),Input('sex_selector', 'value'), Input('place_selector', 'value'),Input('hour_selector', 'value')],
               State('upload-data', 'filename'))
 
-def update_dataframe(contents, filename,selected_sex,selected_place,selected_hour):
+def update_Dataframe(contents, filename,selected_sex,selected_place,selected_hour):
     global df
     if contents is not None:
         # 解析上传的CSV文件，存储到DataFrame中
